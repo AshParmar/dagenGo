@@ -1,17 +1,44 @@
-from fastapi import FastAPI,FastRouter,Path, HTTPException, Query
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, computed_field
-from typing import Annotated, Literal, Optional
-import json
-app=FastAPI()
-router = FastRouter()
+from fastapi import APIRouter
 
-class query(BaseModel):
-    query_text:str
-@router.post('/query')
-async def query(query:query):
-    wq=query.query_text
-    if wq:
-        return JSONResponse(content={"message": f"Query received: {wq}"})
-    else:
-        return JSONResponse(content={"message": "No query received"})
+from schemas.query import QueryRequest
+from graph.workflow import DagenGoWorkflow
+
+
+router = APIRouter()
+
+workflow = DagenGoWorkflow()
+
+
+@router.post("/query")
+async def query(
+    request: QueryRequest,
+):
+
+    state = {
+        "query": request.query,
+        "retry_count": 0,
+    }
+
+    result = await workflow.ainvoke(
+        state
+    )
+
+    return {
+        "answer": result["final_answer"],
+        "citations": result.get(
+            "citations",
+            [],
+        ),
+        "confidence": result.get(
+            "confidence",
+            {},
+        ),
+        "hallucination": result.get(
+            "hallucination",
+            {},
+        ),
+        "groundedness": result.get(
+            "groundedness",
+            {},
+        ),
+    }

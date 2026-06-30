@@ -19,6 +19,8 @@ class Settings:
     # LLM Models
     # ==========================
     GEMINI_MODEL = "gemini-2.5-pro"
+    OPENAI_MODEL = "gpt-4o-mini"
+    CLAUDE_MODEL = "claude-3-5-sonnet-latest"
 
     # ==========================
     # Embedding Model

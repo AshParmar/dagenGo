@@ -1,4 +1,5 @@
 from graph.builder import DagenGoGraph
+from graph.state import DagenGoState
 
 
 class DagenGoWorkflow:
@@ -13,28 +14,28 @@ class DagenGoWorkflow:
 
     def invoke(
         self,
-        state: dict,
-    ):
+        state: DagenGoState,
+    ) -> DagenGoState:
 
         return self.graph.invoke(state)
 
     async def ainvoke(
         self,
-        state: dict,
-    ):
+        state: DagenGoState,
+    ) -> DagenGoState:
 
         return await self.graph.ainvoke(state)
 
     def stream(
         self,
-        state: dict,
+        state: DagenGoState,
     ):
 
         return self.graph.stream(state)
 
     async def astream(
         self,
-        state: dict,
+        state: DagenGoState,
     ):
 
         async for event in self.graph.astream(state):

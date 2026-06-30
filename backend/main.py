@@ -14,12 +14,3 @@ app.include_router(
     prefix="/api",
     tags=["Research"]
 )
-
-
-@app.get("/")
-async def root():
-
-    return {
-        "message": "Welcome to DagenGo API",
-        "status": "running"
-    }

@@ -1,63 +1,32 @@
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 
-from graph.state import DagenGoState
-from graph.router import Router
-
-# --------------------------
-# Agents
-# --------------------------
-
-from agents.planner_agent import PlannerAgent
-from agents.rewrite_agent import RewriteAgent
-from agents.reasoning_agent import ReasoningAgent
-from agents.verifier_agent import VerifierAgent
-from agents.reflection_agent import ReflectionAgent
 from agents.judge_agent import JudgeAgent
-
-# --------------------------
-# Retrieval
-# --------------------------
-
-from retrieval.web_search import WebSearch
-from retrieval.chunker import Chunker
-from retrieval.multi_query import MultiQueryRetriever
-from retrieval.hybrid import HybridRetriever
-from retrieval.merge import RetrievalMerger
-from retrieval.reranker import Reranker
-
-# --------------------------
-# Knowledge Graph
-# --------------------------
-
-from knowledge_graph.entity_extractor import EntityExtractor
-from knowledge_graph.relation_extractor import RelationExtractor
-from knowledge_graph.graph_builder import GraphBuilder
-from knowledge_graph.graph_retriever import GraphRetriever
-
-# --------------------------
-# Evaluation
-# --------------------------
-
-from evaluation.hallucination import HallucinationDetector
+from agents.planner_agent import PlannerAgent
+from agents.reasoning_agent import ReasoningAgent
+from agents.reflection_agent import ReflectionAgent
+from agents.rewrite_agent import RewriteAgent
+from agents.verifier_agent import VerifierAgent
 from evaluation.confidence import ConfidenceScorer
 from evaluation.groundedness import GroundednessEvaluator
-
-# --------------------------
-# Utils
-# --------------------------
-
+from evaluation.hallucination import HallucinationDetector
+from graph.router import Router
+from graph.state import DagenGoState
+from knowledge_graph.entity_extractor import EntityExtractor
+from knowledge_graph.graph_builder import GraphBuilder
+from knowledge_graph.graph_retriever import GraphRetriever
+from knowledge_graph.relation_extractor import RelationExtractor
+from retrieval.chunker import Chunker
+from retrieval.hybrid import HybridRetriever
+from retrieval.multi_query import MultiQueryRetriever
+from retrieval.web_search import WebSearch
 from utils.language_detector import detect_language
 
 
 class DagenGoGraph:
+    """Constructs the frozen DagenGo LangGraph workflow."""
 
-    def __init__(self):
-
+    def __init__(self) -> None:
         self.builder = StateGraph(DagenGoState)
-
-        # ----------------------
-        # Agents
-        # ----------------------
 
         self.planner = PlannerAgent()
         self.rewrite = RewriteAgent()
@@ -66,264 +35,126 @@ class DagenGoGraph:
         self.reflection = ReflectionAgent()
         self.judge = JudgeAgent()
 
-        # ----------------------
-        # Retrieval
-        # ----------------------
-
         self.search = WebSearch()
         self.chunker = Chunker()
         self.multi_query = MultiQueryRetriever()
         self.hybrid = HybridRetriever()
-        self.merge = RetrievalMerger()
-        self.reranker = Reranker()
-
-        # ----------------------
-        # Graph
-        # ----------------------
 
         self.entity = EntityExtractor()
         self.relation = RelationExtractor()
         self.graph = GraphBuilder()
         self.graph_retriever = GraphRetriever()
 
-        # ----------------------
-        # Evaluation
-        # ----------------------
-
         self.hallucination = HallucinationDetector()
         self.confidence = ConfidenceScorer()
         self.groundedness = GroundednessEvaluator()
-    # ==========================================================
-# Wrapper Nodes
-# ==========================================================
 
-def language_node(
-    self,
-    state: DagenGoState,
-) -> DagenGoState:
+    def language_node(self, state: DagenGoState) -> DagenGoState:
+        """Detect query language."""
+        state["language"] = detect_language(state["query"])
+        return state
 
-    state["language"] = detect_language(
-        state["query"]
-    )
+    def retrieval_wrapper(self, state: DagenGoState) -> DagenGoState:
+        """Run multi-query, web retrieval, chunking, and hybrid retrieval."""
+        state = self.multi_query.generate(state)
 
-    return state
+        documents = self.search.search(state.get("rewritten_query", state["query"]))
+        state["retrieved_documents"] = documents
 
+        state["chunks"] = self.chunker.chunk_documents(documents)
 
-def retrieval_node(
-    self,
-    state: DagenGoState,
-) -> DagenGoState:
+        state = self.hybrid.retrieve(state)
+        return state
 
-    # Multi Query Generation
-    state = self.multi_query.generate(state)
+    def _knowledge_source_text(self, state: DagenGoState) -> str:
+        chunks = state.get("chunks", [])
+        if chunks:
+            return "\n\n".join(chunk.get("text", "") for chunk in chunks if chunk.get("text"))
 
-    # Web Search
-    documents = self.search.search(
-        state["rewritten_query"]
-    )
+        documents = state.get("retrieved_documents", [])
+        return "\n\n".join(document.get("text", "") for document in documents if document.get("text"))
 
-    state["retrieved_documents"] = documents
+    def knowledge_graph_wrapper(self, state: DagenGoState) -> DagenGoState:
+        """Extract entities/relations from retrieved evidence, then retrieve graph context."""
+        source_text = self._knowledge_source_text(state)
 
-    # Chunking
-    chunks = self.chunker.chunk_documents(
-        documents
-    )
+        if not source_text.strip():
+            state["entities"] = []
+            state["relations"] = []
+            state["graph_results"] = []
+            return state
 
-    state["chunks"] = chunks
+        entities = self.entity.extract(source_text)
+        relations = self.relation.extract(source_text, entities)
 
-    # Hybrid Retrieval
-    state = self.hybrid.retrieve(state)
+        self.graph.build(entities, relations)
 
-    # Merge
-    state = self.merge.merge(state)
+        state["entities"] = entities
+        state["relations"] = relations
 
-    # Cross Encoder Reranking
-    state = self.reranker.rerank(state)
+        state = self.graph_retriever.retrieve(state)
+        return state
 
-    return state
+    def evaluation_wrapper(self, state: DagenGoState) -> DagenGoState:
+        """Run hallucination, confidence, and groundedness evaluators."""
+        evidence = state.get("reranked_results", [])
 
+        hallucination = self.hallucination.evaluate(
+            query=state["query"],
+            answer=state.get("answer", ""),
+            evidence=evidence,
+        )
+        state["hallucination"] = hallucination
 
-def graph_node(
-    self,
-    state: DagenGoState,
-) -> DagenGoState:
+        state["confidence"] = self.confidence.evaluate(
+            query=state["query"],
+            answer=state.get("answer", ""),
+            evidence=evidence,
+            verification=state.get("verification", {}),
+            hallucination=hallucination,
+        )
 
-    entities = self.entity.extract(
-        state["answer"]
-    )
+        state["groundedness"] = self.groundedness.evaluate(
+            query=state["query"],
+            answer=state.get("answer", ""),
+            evidence=evidence,
+        )
 
-    relations = self.relation.extract(
-        state["answer"],
-        entities,
-    )
+        return state
 
-    self.graph.build(
-        entities,
-        relations,
-    )
+    def build(self):
+        """Register nodes and compile the frozen graph shape."""
+        builder = self.builder
 
-    state["entities"] = entities
-    state["relations"] = relations
+        builder.add_node("language", self.language_node)
+        builder.add_node("planner", self.planner.invoke)
+        builder.add_node("rewrite", self.rewrite.invoke)
+        builder.add_node("retrieval", self.retrieval_wrapper)
+        builder.add_node("graph", self.knowledge_graph_wrapper)
+        builder.add_node("reasoning", self.reasoning.invoke)
+        builder.add_node("verifier", self.verifier.invoke)
+        builder.add_node("reflection", self.reflection.invoke)
+        builder.add_node("evaluation", self.evaluation_wrapper)
+        builder.add_node("judge", self.judge.invoke)
 
-    state = self.graph_retriever.retrieve(
-        state
-    )
+        builder.add_edge(START, "language")
+        builder.add_edge("language", "planner")
+        builder.add_edge("planner", "rewrite")
+        builder.add_edge("rewrite", "retrieval")
+        builder.add_edge("retrieval", "graph")
+        builder.add_edge("graph", "reasoning")
+        builder.add_edge("reasoning", "verifier")
+        builder.add_edge("verifier", "reflection")
+        builder.add_edge("reflection", "evaluation")
+        builder.add_edge("evaluation", "judge")
 
-    return state
+        builder.add_conditional_edges(
+            "judge",
+            Router.judge_route,
+            {
+                "reflection": "reflection",
+                "end": END,
+            },
+        )
 
-
-def evaluation_node(
-    self,
-    state: DagenGoState,
-) -> DagenGoState:
-
-    hallucination = self.hallucination.evaluate(
-        query=state["query"],
-        answer=state["answer"],
-        evidence=state["reranked_results"],
-    )
-
-    state["hallucination"] = hallucination
-
-    confidence = self.confidence.evaluate(
-        query=state["query"],
-        answer=state["answer"],
-        evidence=state["reranked_results"],
-        verification=state["verification"],
-        hallucination=hallucination,
-    )
-
-    state["confidence"] = confidence
-
-    groundedness = self.groundedness.evaluate(
-        query=state["query"],
-        answer=state["answer"],
-        evidence=state["reranked_results"],
-    )
-
-    state["groundedness"] = groundedness
-
-    return state
-def build(self):
-
-    builder = self.builder
-
-    # ==========================================================
-    # Register Nodes
-    # ==========================================================
-
-    builder.add_node(
-        "language",
-        self.language_node,
-    )
-
-    builder.add_node(
-        "planner",
-        self.planner.invoke,
-    )
-
-    builder.add_node(
-        "rewrite",
-        self.rewrite.invoke,
-    )
-
-    builder.add_node(
-        "retrieval",
-        self.retrieval_node,
-    )
-
-    builder.add_node(
-        "graph",
-        self.graph_node,
-    )
-
-    builder.add_node(
-        "reasoning",
-        self.reasoning.invoke,
-    )
-
-    builder.add_node(
-        "verifier",
-        self.verifier.invoke,
-    )
-
-    builder.add_node(
-        "reflection",
-        self.reflection.invoke,
-    )
-
-    builder.add_node(
-        "evaluation",
-        self.evaluation_node,
-    )
-
-    builder.add_node(
-        "judge",
-        self.judge.invoke,
-    )
-        # ==========================================================
-    # Normal Flow
-    # ==========================================================
-
-    builder.add_edge(
-        START,
-        "language",
-    )
-
-    builder.add_edge(
-        "language",
-        "planner",
-    )
-
-    builder.add_edge(
-        "planner",
-        "rewrite",
-    )
-    builder.add_conditional_edges(
-        "rewrite",
-        Router.planner_route,
-        {
-            "retrieval": "retrieval",
-            "graph": "graph",
-        },
-    )
-    builder.add_edge(
-        "retrieval",
-        "graph",
-    )
-
-    builder.add_edge(
-        "graph",
-        "reasoning",
-    )
-
-    builder.add_edge(
-        "reasoning",
-        "verifier",
-    )
-
-    builder.add_edge(
-        "verifier",
-        "reflection",
-    )
-
-    builder.add_edge(
-        "reflection",
-        "evaluation",
-    )
-
-    builder.add_edge(
-        "evaluation",
-        "judge",
-    )
-    builder.add_conditional_edges(
-        "judge",
-        Router.judge_route,
-        {
-            "reflection": "reflection",
-            "end": END,
-        },
-    )
-
-    return builder
-    
+        return builder

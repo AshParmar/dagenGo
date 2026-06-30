@@ -1,7 +1,13 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 
-from schemas.query import QueryRequest
 from graph.workflow import DagenGoWorkflow
+
+
+class QueryRequest(BaseModel):
+    """Request payload for query execution."""
+
+    query: str
 
 
 router = APIRouter()

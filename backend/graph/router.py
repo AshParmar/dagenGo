@@ -1,111 +1,20 @@
-from typing import TypedDict, Any
+from graph.state import DagenGoState
 
 
-class DagenGoState(TypedDict, total=False):
+class Router:
+    """Routes graph execution between control-flow branches."""
 
-    # ==========================================================
-    # User
-    # ==========================================================
+    @staticmethod
+    def judge_route(state: DagenGoState) -> str:
+        """Route to reflection if not approved and retry budget remains."""
+        approved = bool(state.get("approved", False))
+        retry_count = int(state.get("retry_count", 0))
 
-    query: str
-    language: str
+        if approved:
+            return "end"
 
-    # ==========================================================
-    # Planner
-    # ==========================================================
+        if retry_count < 2:
+            state["retry_count"] = retry_count + 1
+            return "reflection"
 
-    plan: dict
-
-    query_type: str
-    retrieval_strategy: str
-
-    web_search: bool
-    graph_retrieval: bool
-    multilingual: bool
-    decompose: bool
-
-    # ==========================================================
-    # Query Processing
-    # ==========================================================
-
-    rewritten_query: str
-    multilingual_queries: list[str]
-    multi_queries: list[str]
-
-    # ==========================================================
-    # Web Search
-    # ==========================================================
-
-    retrieved_documents: list[dict]
-
-    # ==========================================================
-    # Chunking
-    # ==========================================================
-
-    chunks: list[dict]
-
-    # ==========================================================
-    # Knowledge Graph
-    # ==========================================================
-
-    entities: list[dict]
-    relations: list[dict]
-
-    # ==========================================================
-    # Retrieval
-    # ==========================================================
-
-    dense_results: list[dict]
-    sparse_results: list[dict]
-    graph_results: list[dict]
-
-    merged_results: list[dict]
-    reranked_results: list[dict]
-
-    # ==========================================================
-    # Generation
-    # ==========================================================
-
-    answer: str
-
-    # ==========================================================
-    # Verification
-    # ==========================================================
-
-    verification: dict
-
-    # ==========================================================
-    # Evaluation
-    # ==========================================================
-
-    hallucination: dict
-    confidence: dict
-    groundedness: dict
-
-    # ==========================================================
-    # Reflection
-    # ==========================================================
-
-    reflection: dict
-
-    next_action: str
-    improved_query: str
-
-    # ==========================================================
-    # Judge
-    # ==========================================================
-
-    approved: bool
-    judge_reason: str
-
-    final_answer: str
-
-    # ==========================================================
-    # Metadata
-    # ==========================================================
-
-    retry_count: int
-
-    citations: list[dict]
-
-    metadata: dict[str, Any]
+        return "end"

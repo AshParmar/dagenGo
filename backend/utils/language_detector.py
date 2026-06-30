@@ -22,3 +22,8 @@ class LanguageDetector:
             return detect(text)
         except Exception:
             return "unknown"
+
+
+def detect_language(text: str) -> str:
+    """Detect language from free text."""
+    return LanguageDetector().detect_language(text)

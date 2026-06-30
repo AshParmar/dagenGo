@@ -23,6 +23,10 @@ class Reranker:
 
         documents = state["merged_results"]
 
+        if not documents:
+            state["reranked_results"] = []
+            return state
+
         pairs = [
             (
                 query,

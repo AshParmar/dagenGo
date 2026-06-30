@@ -8,24 +8,26 @@ class BM25Retriever:
         self.tokenized_documents = []
         self.bm25 = None
 
-    def index(self, documents: list[str]):
-
-        self.documents = documents
+    def index(self, documents: list[dict]):
+        """Index documents for sparse retrieval."""
+        self.documents = [document for document in documents if document.get("text")]
 
         self.tokenized_documents = [
-            document.split()
-            for document in documents
+            document["text"].split()
+            for document in self.documents
         ]
 
-        self.bm25 = BM25Okapi(
-            self.tokenized_documents
-        )
+        if not self.tokenized_documents:
+            self.bm25 = None
+            return
+
+        self.bm25 = BM25Okapi(self.tokenized_documents)
 
     def retrieve(
         self,
         query: str,
         top_k: int = 10,
-    ):
+    ) -> list[dict]:
 
         if self.bm25 is None:
             return []
@@ -42,4 +44,11 @@ class BM25Retriever:
             reverse=True,
         )
 
-        return ranked[:top_k]
+        results: list[dict] = []
+
+        for document, score in ranked[:top_k]:
+            enriched = dict(document)
+            enriched["score"] = float(score)
+            results.append(enriched)
+
+        return results

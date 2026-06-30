@@ -57,8 +57,8 @@ class GroundednessEvaluator:
 
     def evaluate(
         self,
-        query,
-        answer,
+        query: str,
+        answer: str,
         evidence,
     ):
 

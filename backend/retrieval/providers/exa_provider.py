@@ -1,11 +1,10 @@
 from exa_py import Exa
 
 from config import settings
+from retrieval.providers.base_provider import BaseSearchProvider
 
-from retrieval.web_search import BaseSearchProvider
 
-
-class ExaSearchProvider(BaseSearchProvider):
+class ExaProvider(BaseSearchProvider):
 
     def __init__(self):
 

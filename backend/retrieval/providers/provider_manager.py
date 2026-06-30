@@ -1,5 +1,10 @@
+import logging
+
 from retrieval.providers.exa_provider import ExaProvider
 from retrieval.providers.tavily_provider import TavilyProvider
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderManager:
@@ -43,9 +48,10 @@ class ProviderManager:
                     )
 
             except Exception as e:
-
-                print(
-                    f"{provider.__class__.__name__}: {e}"
+                logger.warning(
+                    "%s search failed: %s",
+                    provider.__class__.__name__,
+                    e,
                 )
 
         return documents

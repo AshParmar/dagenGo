@@ -1,4 +1,4 @@
-from typing import TypedDict, Any
+from typing import Any, TypedDict
 
 
 class DagenGoState(TypedDict, total=False):
@@ -73,6 +73,8 @@ class DagenGoState(TypedDict, total=False):
     # ==========================================================
 
     verification: dict
+    supported: bool
+    needs_reretrieval: bool
 
     # ==========================================================
     # Evaluation

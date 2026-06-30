@@ -1,10 +1,13 @@
-from fastapi import FastAPI,FastRouter,Path, HTTPException, Query
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, computed_field
-from typing import Annotated, Literal, Optional
-import json
-router = FastRouter()
-@router.post('/query')
-class dagengo_workflow(BaseModel):
-    def run_workflow(self, query):
-        return JSONResponse(content={"message": "Workflow executed successfully"})
+from graph.state import DagenGoState
+from graph.workflow import DagenGoWorkflow
+
+
+class DagenGoWorkflowRunner:
+    """Thin adapter around the compiled graph workflow."""
+
+    def __init__(self) -> None:
+        self.workflow = DagenGoWorkflow()
+
+    async def run(self, state: DagenGoState) -> DagenGoState:
+        """Invoke workflow asynchronously."""
+        return await self.workflow.ainvoke(state)

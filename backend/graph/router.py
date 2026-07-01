@@ -14,7 +14,19 @@ class Router:
             return "end"
 
         if retry_count < 2:
-            state["retry_count"] = retry_count + 1
             return "reflection"
 
         return "end"
+
+    @staticmethod
+    def reflection_route(state: DagenGoState) -> str:
+        """Route back to rewrite/retrieval/graph or end based on reflection action."""
+        action = state.get("next_action")
+
+        if action in ("retrieve_again", "web_search"):
+            return "rewrite"
+        elif action == "graph_retrieve":
+            return "graph"
+
+        return "end"
+

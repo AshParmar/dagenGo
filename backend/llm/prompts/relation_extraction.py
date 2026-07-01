@@ -17,15 +17,15 @@ Rules:
 
 Output:
 
-{
+{{
     "relations":[
-        {
+        {{
             "source":"...",
             "relation":"...",
             "target":"..."
-        }
+        }}
     ]
-}
+}}
 """
         ),
         (

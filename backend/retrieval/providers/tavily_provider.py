@@ -8,6 +8,9 @@ class TavilyProvider(BaseSearchProvider):
 
     def __init__(self):
 
+        if not settings.TAVILY_API_KEY:
+            raise RuntimeError("TAVILY_API_KEY is not set — skipping Tavily provider.")
+
         self.client = TavilyClient(
             api_key=settings.TAVILY_API_KEY
         )

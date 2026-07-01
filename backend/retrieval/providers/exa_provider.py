@@ -1,4 +1,4 @@
-from exa_py import Exa
+from typing import Any
 
 from config import settings
 from retrieval.providers.base_provider import BaseSearchProvider
@@ -8,7 +8,17 @@ class ExaProvider(BaseSearchProvider):
 
     def __init__(self):
 
-        self.client = Exa(
+        if not settings.EXA_API_KEY:
+            raise RuntimeError("EXA_API_KEY is not set — skipping Exa provider.")
+
+        try:
+            exa_module = __import__("exa_py", fromlist=["Exa"])
+        except ImportError as exc:
+            raise RuntimeError(
+                "exa_py is required for ExaProvider. Install the backend dependencies to enable Exa search."
+            ) from exc
+
+        self.client: Any = exa_module.Exa(
             api_key=settings.EXA_API_KEY
         )
 

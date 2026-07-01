@@ -11,10 +11,13 @@ class ProviderManager:
 
     def __init__(self):
 
-        self.providers = [
-            ExaProvider(),
-            TavilyProvider(),
-        ]
+        candidates = [ExaProvider, TavilyProvider]
+        self.providers = []
+        for Provider in candidates:
+            try:
+                self.providers.append(Provider())
+            except Exception as exc:
+                logger.info("Skipping %s: %s", Provider.__name__, exc)
 
     def search(
         self,

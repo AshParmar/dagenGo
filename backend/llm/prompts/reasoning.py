@@ -13,6 +13,8 @@ Answer ONLY from the provided context.
 If insufficient evidence exists, say so.
 
 Always cite the document used.
+
+IMPORTANT: You MUST write your entire answer in {language}. Do not use any other language.
 """
         ),
         (

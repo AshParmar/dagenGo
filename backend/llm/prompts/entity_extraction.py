@@ -28,14 +28,14 @@ Return ONLY valid JSON.
 
 Format:
 
-{
+{{
     "entities":[
-        {
+        {{
             "name":"...",
             "type":"..."
-        }
+        }}
     ]
-}
+}}
 """
         ),
         (

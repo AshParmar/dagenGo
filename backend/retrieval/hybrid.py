@@ -16,7 +16,10 @@ class HybridRetriever:
     """Hybrid retrieval service: dense + sparse + merge + rerank."""
 
     def __init__(self) -> None:
-        self.vector_store = VectorStore()
+        try:
+            self.vector_store: VectorStore | None = VectorStore()
+        except Exception:
+            self.vector_store = None
         self.bm25 = BM25Retriever()
         self.merger = RetrievalMerger()
         self.reranker = Reranker()
@@ -47,6 +50,8 @@ class HybridRetriever:
 
     def dense_retrieval(self, query: str, top_k: int) -> list[dict]:
         """Run dense retrieval over Qdrant."""
+        if self.vector_store is None:
+            return []
         try:
             if not self._collection_checked:
                 self.vector_store.create_collection()
@@ -72,7 +77,15 @@ class HybridRetriever:
         query = state.get("rewritten_query") or state.get("query", "")
         chunks = state.get("chunks", [])
 
-        dense_results = self.dense_retrieval(query=query, top_k=top_k)
+        run_settings = state.get("settings") or {}
+        top_k = run_settings.get("topK", top_k)
+        hybrid_enabled = run_settings.get("hybridRetrieval", True)
+
+        if hybrid_enabled:
+            dense_results = self.dense_retrieval(query=query, top_k=top_k)
+        else:
+            dense_results = []
+
         sparse_results = self.sparse_retrieval(query=query, chunks=chunks, top_k=top_k)
 
         state["dense_results"] = dense_results

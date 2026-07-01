@@ -25,14 +25,14 @@ class Settings:
     # ==========================
     # Embedding Model
     # ==========================
-    EMBEDDING_MODEL = "models/text-embedding-004"
+    EMBEDDING_MODEL = "embedding-001"
 
     # ==========================
     # Qdrant
     # ==========================
     QDRANT_URL = os.getenv("QDRANT_URL")
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-    COLLECTION_NAME = "dagengo"
+    COLLECTION_NAME = "dagengo_local"
 
     # ==========================
     # Neo4j

@@ -25,13 +25,13 @@ Determine:
 
 Return ONLY JSON.
 
-{
+{{
     "supported": true,
     "supported_claims": [],
     "unsupported_claims": [],
     "missing_information": [],
     "needs_reretrieval": false
-}
+}}
 """
         ),
         (
@@ -69,15 +69,21 @@ class VerifierAgent:
         verification = self.chain.invoke(
             {
                 "query": state["query"],
-                "evidence": state["reranked_results"],
-                "answer": state["answer"],
+                "evidence": state["reranked_results"][:5],
+                "answer": state.get("answer", "")[:4000],
             }
         )
 
+        if isinstance(verification, list) and len(verification) > 0:
+            verification = verification[0]
+
+        if not isinstance(verification, dict):
+            verification = {}
+
         state["verification"] = verification
 
-        state["supported"] = verification["supported"]
+        state["supported"] = bool(verification.get("supported", False))
 
-        state["needs_reretrieval"] = verification["needs_reretrieval"]
+        state["needs_reretrieval"] = bool(verification.get("needs_reretrieval", False))
 
         return state

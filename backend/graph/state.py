@@ -62,6 +62,9 @@ class DagenGoState(TypedDict, total=False):
     merged_results: list[dict]
     reranked_results: list[dict]
 
+    execution_steps: list[dict]
+    timeline: list[dict]
+
     # ==========================================================
     # Generation
     # ==========================================================
@@ -111,3 +114,6 @@ class DagenGoState(TypedDict, total=False):
     citations: list[dict]
 
     metadata: dict[str, Any]
+
+    # User-supplied frontend settings (language, topK, provider, model, etc.)
+    settings: dict[str, Any]

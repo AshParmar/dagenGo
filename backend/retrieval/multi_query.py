@@ -22,7 +22,7 @@ Rules:
 
 Return ONLY JSON.
 
-{
+{{
     "queries":[
         "...",
         "...",
@@ -30,7 +30,7 @@ Return ONLY JSON.
         "...",
         "..."
     ]
-}
+}}
 """
         ),
         (

@@ -12,6 +12,9 @@ class VectorStore:
 
     def __init__(self):
 
+        if not settings.QDRANT_URL:
+            raise RuntimeError("QDRANT_URL is not configured — dense retrieval disabled.")
+
         self.client = QdrantClient(
             url=settings.QDRANT_URL,
             api_key=settings.QDRANT_API_KEY,
@@ -31,7 +34,7 @@ class VectorStore:
             self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(
-                    size=768,
+                    size=384,
                     distance=Distance.COSINE,
                 ),
             )
@@ -50,8 +53,16 @@ class VectorStore:
         limit: int = 10,
     ):
 
-        return self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_vector,
-            limit=limit,
-        )
+        if hasattr(self.client, "search"):
+            return self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_vector,
+                limit=limit,
+            )
+        else:
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_vector,
+                limit=limit,
+            )
+            return response.points

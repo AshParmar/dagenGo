@@ -16,14 +16,14 @@ Analyze the user's query and decide the execution strategy.
 
 Return ONLY valid JSON.
 
-{
+{{
     "query_type": "",
     "retrieval_strategy": "",
     "multilingual": false,
     "web_search": false,
     "graph_retrieval": false,
     "decompose": false
-}
+}}
 """
         ),
         (
@@ -58,18 +58,24 @@ class PlannerAgent:
             }
         )
 
+        if isinstance(plan, list) and len(plan) > 0:
+            plan = plan[0]
+
+        if not isinstance(plan, dict):
+            plan = {}
+
         state["plan"] = plan
 
-        state["query_type"] = plan["query_type"]
+        state["query_type"] = plan.get("query_type", "general")
 
-        state["retrieval_strategy"] = plan["retrieval_strategy"]
+        state["retrieval_strategy"] = plan.get("retrieval_strategy", "hybrid")
 
-        state["multilingual"] = plan["multilingual"]
+        state["multilingual"] = bool(plan.get("multilingual", False))
 
-        state["web_search"] = plan["web_search"]
+        state["web_search"] = bool(plan.get("web_search", True))
 
-        state["graph_retrieval"] = plan["graph_retrieval"]
+        state["graph_retrieval"] = bool(plan.get("graph_retrieval", True))
 
-        state["decompose"] = plan["decompose"]
+        state["decompose"] = bool(plan.get("decompose", False))
 
         return state

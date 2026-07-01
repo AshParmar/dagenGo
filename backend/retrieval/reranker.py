@@ -27,6 +27,10 @@ class Reranker:
             state["reranked_results"] = []
             return state
 
+        # Respect topK from user settings if provided
+        run_settings = state.get("settings") or {}
+        top_k = int(run_settings.get("topK", top_k))
+
         pairs = [
             (
                 query,

@@ -18,25 +18,33 @@ class ReasoningAgent:
     def _build_context(self, state: DagenGoState) -> str:
         parts: list[str] = []
 
-        for document in state.get("reranked_results", []):
+        # Limit to top 5 reranked results max
+        for document in state.get("reranked_results", [])[:5]:
             text = document.get("text", "")
             if text:
                 parts.append(text)
 
-        for item in state.get("graph_results", []):
+        # Limit to top 5 graph results max
+        for item in state.get("graph_results", [])[:5]:
             if isinstance(item, dict):
                 parts.append(str(item))
 
-        return "\n\n".join(parts)
+        context = "\n\n".join(parts)
+        # Limit to 12,000 characters max
+        return context[:12000]
 
     def invoke(self, state: DagenGoState) -> DagenGoState:
 
         context = self._build_context(state)
 
+        # Use the auto-detected language from the language_node stage
+        language = state.get("language") or "English"
+
         answer = self.chain.invoke(
             {
                 "query": state["query"],
                 "context": context,
+                "language": language,
             }
         )
 

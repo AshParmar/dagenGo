@@ -16,22 +16,24 @@ class ReasoningAgent:
         )
 
     def _build_context(self, state: DagenGoState) -> str:
+        from config import settings
         parts: list[str] = []
 
-        # Limit to top 5 reranked results max
-        for document in state.get("reranked_results", [])[:5]:
+        # Use config-driven limits (default: MAX_CONTEXT_CHUNKS=8)
+        for document in state.get("reranked_results", [])[:settings.MAX_CONTEXT_CHUNKS]:
             text = document.get("text", "")
             if text:
                 parts.append(text)
 
-        # Limit to top 5 graph results max
+        # Include top graph results for enriched context
         for item in state.get("graph_results", [])[:5]:
             if isinstance(item, dict):
                 parts.append(str(item))
 
         context = "\n\n".join(parts)
-        # Limit to 12,000 characters max
-        return context[:12000]
+        # Hard cap at MAX_PROMPT_TOKENS chars (default: 6000 chars ≈ 1500 tokens)
+        # Increased to 20000 for detailed answers while still being below LLM limits
+        return context[:20000]
 
     def invoke(self, state: DagenGoState) -> DagenGoState:
 

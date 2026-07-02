@@ -9,48 +9,25 @@ reflection_prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            """
-You are DagenGo's Reflection Agent.
+            """You are DagenGo's Reflection Agent. Decide the next action based on evaluation metrics.
 
-Analyze the verification report, evaluation metrics, and the judge's feedback to decide the next action.
+Actions:
+- retrieve_again: fetch new evidence with improved_query (use when hallucination is high or groundedness is low)
+- graph_retrieve: get more KG context
+- web_search: targeted web search
+- continue: proceed (rarely used; judge handles approval)
+- abort: only for unresolvable error states
 
-Possible actions:
+RULE: If judge rejected (Approved=False), choose 'retrieve_again' and write an improved_query.
 
-- continue (use when answer is approved and no further action is needed)
-- retrieve_again (use to search web/sources again with an improved query)
-- graph_retrieve (use to fetch more context from the knowledge graph)
-- web_search (use to perform web search)
-- ask_user (use only if query is completely nonsensical or unresolvable)
-- abort (use only for error states)
-
-IMPORTANT: If the judge rejected the answer (Approved: False) due to high hallucination or low groundedness, you MUST choose 'retrieve_again' or 'web_search' to fetch better, more accurate evidence. Propose a targeted search query in 'improved_query' focused on finding the correct information.
-
-Return ONLY JSON.
-
-{{
-    "action":"",
-    "reason":"",
-    "improved_query":""
-}}
-"""
+Return ONLY JSON:
+{{"action":"","reason":"","improved_query":""}}""",
         ),
         (
             "human",
-            """
-User Query:
-{query}
-
-Verification Report:
-{verification}
-
-Evaluation Metrics:
-- Confidence Score: {confidence_score}
-- Groundedness Score: {groundedness_score}
-- Hallucination Score: {hallucination_score}
-
-Judge Approval: {approved}
-Judge Reason: {judge_reason}
-"""
+            """Query: {query}
+Judge: {approved} — {judge_reason}
+Confidence={confidence_score} | Groundedness={groundedness_score} | Hallucination={hallucination_score}""",
         ),
     ]
 )
@@ -74,7 +51,6 @@ class ReflectionAgent:
         reflection = self.chain.invoke(
             {
                 "query": state["query"],
-                "verification": state["verification"],
                 "confidence_score": f"{state.get('confidence', {}).get('confidence_score', 0.0) * 100:.0f}%",
                 "groundedness_score": f"{state.get('groundedness', {}).get('groundedness_score', 0.0) * 100:.0f}%",
                 "hallucination_score": f"{state.get('hallucination', {}).get('hallucination_score', 0.0) * 100:.0f}%",
@@ -91,7 +67,9 @@ class ReflectionAgent:
 
         state["reflection"] = reflection
 
-        state["next_action"] = reflection.get("action", "continue")
+        # If the judge rejected the answer, default to retrying retrieval rather than exiting
+        default_action = "continue" if state.get("approved", False) else "retrieve_again"
+        state["next_action"] = reflection.get("action", default_action)
 
         state["improved_query"] = reflection.get("improved_query", "")
 

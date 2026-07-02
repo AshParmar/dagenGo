@@ -118,7 +118,9 @@ function parseBlocks(md: string): ReactNode[] {
       continue;
     }
     const para: string[] = [];
-    while (i < lines.length && lines[i].trim() !== "" && !/^[#>\-*`|]/.test(lines[i])) {
+    para.push(lines[i]);
+    i++;
+    while (i < lines.length && lines[i].trim() !== "" && !/^(```|#{1,4}\s|> |\||[-*]\s)/.test(lines[i])) {
       para.push(lines[i]);
       i++;
     }

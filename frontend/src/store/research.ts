@@ -41,6 +41,7 @@ interface ResearchState {
   sessions: ResearchSession[];
   settings: ResearchSettings;
   reset: () => void;
+  resetForRetry: () => void;
   start: (query: string) => string;
   applyStage: (stage: PipelineStage) => void;
   appendAnswer: (answer: string) => void;
@@ -175,6 +176,22 @@ export const useResearchStore = create<ResearchState>()(
         return id;
       },
 
+      resetForRetry: () => {
+        set((state) => ({
+          stages: state.stages.map((stage) => {
+            if (stage.id === "lang" || stage.id === "plan") {
+              return stage;
+            }
+            return {
+              ...stage,
+              status: "pending" as const,
+              elapsedMs: 0,
+              detail: [],
+            };
+          }),
+        }));
+      },
+
       applyStage: (stage) => {
         set((state) => {
           const stages = mergeStage(state.stages, {
@@ -202,18 +219,23 @@ export const useResearchStore = create<ResearchState>()(
       applyResult: (result, sessionIdOverride) => {
         const state = get();
         const id = sessionIdOverride ?? state.activeSessionId ?? sessionId();
-        const normalizedStages =
-          result.execution_steps?.length && result.execution_steps.length > 0
-            ? result.execution_steps.map((stage) => ({
-                ...stage,
-                status: stage.status === "failed" ? "failed" : "completed",
-                elapsedMs: stage.elapsedMs ?? 0,
-              }))
-            : state.stages.map((stage) =>
-                stage.status === "pending" || stage.status === "running"
-                  ? { ...stage, status: "completed" as const }
-                  : stage,
-              );
+        let normalizedStages = [...state.stages];
+        if (result.execution_steps && result.execution_steps.length > 0) {
+          normalizedStages = initialStages();
+          for (const stage of result.execution_steps) {
+            normalizedStages = mergeStage(normalizedStages, {
+              ...stage,
+              status: stage.status === "failed" ? "failed" : "completed",
+              elapsedMs: stage.elapsedMs ?? 0,
+            });
+          }
+        } else {
+          normalizedStages = state.stages.map((stage) =>
+            stage.status === "pending" || stage.status === "running"
+              ? { ...stage, status: "completed" as const }
+              : stage,
+          );
+        }
 
         const nextResult: ResearchResponse = {
           ...result,
